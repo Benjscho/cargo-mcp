@@ -1,10 +1,14 @@
-
 use std::time::Duration;
 
 use anyhow::Result;
-use cargo_mcp::{providers::Providers, Config, Server};
+use cargo_mcp::{Config, Server, providers::Providers};
 use rmcp::{
-    model::{CallToolRequestParam, ClientCapabilities, ClientInfo, Implementation}, transport::{streamable_http_server::session::local::LocalSessionManager, StreamableHttpClientTransport, StreamableHttpService}, ServiceExt
+    ServiceExt,
+    model::{CallToolRequestParam, ClientCapabilities, ClientInfo, Implementation},
+    transport::{
+        StreamableHttpClientTransport, StreamableHttpService,
+        streamable_http_server::session::local::LocalSessionManager,
+    },
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -49,9 +53,11 @@ async fn main() -> Result<()> {
         .call_tool(CallToolRequestParam {
             name: "search_crate".into(),
             arguments: serde_json::json!({
-                "query": "Error sink",
-                "crate_name": "bb8"
-            }).as_object().cloned(),
+                "query": "yield_now",
+                "crate_name": "tokio"
+            })
+            .as_object()
+            .cloned(),
         })
         .await?;
     tracing::info!("Tool result: {tool_result:#?}");

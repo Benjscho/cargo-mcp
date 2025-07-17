@@ -1,4 +1,4 @@
-use rustdoc_types::{Id, ItemEnum, ItemKind};
+use rustdoc_types::{Attribute, Id, ItemEnum, ItemKind};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -21,6 +21,7 @@ pub struct Item {
     pub kind: ItemKind,
     pub docs: Option<String>,
     pub children: Vec<Id>,
+    pub feature_gates: Vec<Attribute>,
 }
 
 impl Item {
@@ -91,6 +92,13 @@ impl Crate {
 
             let docs = info.docs.clone();
 
+            let feature_gates = info
+                .attrs
+                .iter()
+                .filter(|attr| matches!(attr, Attribute::TargetFeature { enable: _ }))
+                .map(|attr| attr.clone())
+                .collect();
+
             let item = Item {
                 id,
                 name: item.path.last().unwrap().clone(),
@@ -99,6 +107,7 @@ impl Crate {
                 kind,
                 docs,
                 children: Vec::new(),
+                feature_gates,
             };
 
             processed.items.insert(id, item);
@@ -143,6 +152,15 @@ impl Crate {
                                     }
                                 };
 
+                                let feature_gates = info
+                                    .attrs
+                                    .iter()
+                                    .filter(|attr| {
+                                        matches!(attr, Attribute::TargetFeature { enable: _ })
+                                    })
+                                    .map(|attr| attr.to_owned())
+                                    .collect();
+
                                 let fn_item = Item {
                                     id: item_id,
                                     name: item_name.clone(),
@@ -151,6 +169,7 @@ impl Crate {
                                     kind,
                                     docs: info.docs.clone(),
                                     children: Vec::new(),
+                                    feature_gates,
                                 };
                                 additional_items.insert(item_id, fn_item);
                             }
@@ -335,11 +354,12 @@ edition = "2024"
             path.join("Cargo.toml")
         };
 
-        // Generate rustdoc JSON
+        // Generate rustdoc JSON with --cfg=docsrs flag to include feature-gated items
         let json_path = rustdoc_json::Builder::default()
             .toolchain(NIGHTLY_VERSION)
             .manifest_path(&manifest_path)
             .document_private_items(is_workspace) // Include private items
+            .all_features(true) // Add --cfg=docsrs flag to include feature-gated items
             .build()
             .map_err(|e| format!("Failed to generate rustdoc JSON: {}", e))?;
 
